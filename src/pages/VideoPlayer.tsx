@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Maximize, Minimize, AlertCircle, SkipForward, Play, Pause, Volume2, VolumeX, Settings, Server, Captions, CaptionsOff, RotateCcw, RotateCw, Gauge, Languages, Square } from 'lucide-react';
+import { ArrowLeft, Maximize, Minimize, AlertCircle, SkipForward, Play, Pause, Volume2, VolumeX, Settings, Server, Captions, CaptionsOff, RotateCcw, RotateCw, Gauge, Languages } from 'lucide-react';
 import { useAnimeDetails, useAnimeEpisodes } from '@/hooks/useAnime';
 import { useWatchHistory } from '@/hooks/useWatchHistory';
 import { WatchHistoryEntry } from '@/lib/db';
@@ -13,7 +13,6 @@ const API_BASE = 'https://animeapi-sage.vercel.app';
 const CORS_PROXY = '/api/proxy?url=';
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
-const ASPECT_RATIOS = ['Default', '16:9', '4:3', '2.35:1', 'Full'];
 
 interface StreamServer {
   type: string;
@@ -71,10 +70,8 @@ const VideoPlayer = () => {
   const [currentQuality, setCurrentQuality] = useState(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showServerMenu, setShowServerMenu] = useState(false);
-  const [showPlaybackSpeedMenu, setShowPlaybackSpeedMenu] = useState(false);
-  const [showAspectRatioMenu, setShowAspectRatioMenu] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState('Default');
-  const [seekFeedback, setSeekFeedback] = useState<'forward' | 'backward' | null>(null);
+    const [showPlaybackSpeedMenu, setShowPlaybackSpeedMenu] = useState(false);
+      const [seekFeedback, setSeekFeedback] = useState<'forward' | 'backward' | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
@@ -192,28 +189,6 @@ const VideoPlayer = () => {
     art.playbackRate = speed;
     setPlaybackSpeed(speed);
     setShowPlaybackSpeedMenu(false);
-  };
-
-  const changeAspectRatio = (ratio: string) => {
-    const art = artRef.current;
-    if (!art) return;
-    setAspectRatio(ratio);
-    setShowAspectRatioMenu(false);
-    
-    // Add persistent storage or ensure it's applied to the video element directly too
-    const video = art.video;
-    if (video) {
-      if (ratio === 'Full') {
-        video.style.objectFit = 'cover';
-        art.aspectRatio = '';
-      } else if (ratio === 'Default') {
-        video.style.objectFit = 'contain';
-        art.aspectRatio = '';
-      } else {
-        video.style.objectFit = 'contain';
-        art.aspectRatio = ratio.toLowerCase();
-      }
-    }
   };
 
   const toggleFullscreen = async () => {
@@ -493,10 +468,11 @@ const VideoPlayer = () => {
                         manifestLoadingRetryDelay: 200,
                         startFragPrefetch: true,
                         progressive: true,
-                    xhrSetup: (xhr: XMLHttpRequest, xhrUrl: string) => {
-                      const finalUrl = xhrUrl.startsWith(CORS_PROXY) ? xhrUrl : CORS_PROXY + encodeURIComponent(xhrUrl);
-                      xhr.open('GET', finalUrl, true);
-                    },
+                      xhrSetup: (xhr: XMLHttpRequest, xhrUrl: string) => {
+                        const alreadyProxied = xhrUrl.includes('/api/proxy?url=');
+                        const finalUrl = alreadyProxied ? xhrUrl : CORS_PROXY + encodeURIComponent(xhrUrl);
+                        xhr.open('GET', finalUrl, true);
+                      },
                   });
 
                   hlsInstanceRef.current = hls;
@@ -554,17 +530,6 @@ const VideoPlayer = () => {
             setIsLoading(false);
             if (savedProgress && savedProgress.timestamp > 10) {
               art.currentTime = savedProgress.timestamp;
-            }
-            if (aspectRatio !== 'Default') {
-              const video = art.video;
-              if (video) {
-                if (aspectRatio === 'Full') {
-                  video.style.objectFit = 'cover';
-                } else {
-                  video.style.objectFit = 'contain';
-                  art.aspectRatio = aspectRatio.toLowerCase();
-                }
-              }
             }
           });
 
@@ -1081,7 +1046,7 @@ const VideoPlayer = () => {
               </div>
                 <div className="relative">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); setShowServerMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); setShowAspectRatioMenu(false); }}
+                    onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); setShowServerMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
                     className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center hover:bg-white/10 transition-colors"
                   >
                     <Settings className="w-5 h-5" />
@@ -1209,58 +1174,32 @@ const VideoPlayer = () => {
                 <span className="text-sm font-bold tabular-nums tracking-wider">{formatTime(currentTime)} <span className="text-white/20">/</span> {formatTime(duration)}</span>
               </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowAspectRatioMenu(!showAspectRatioMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowSubtitleMenu(false); setShowPlaybackSpeedMenu(false); setShowAudioMenu(false); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
-                    >
-                      <Square className="w-4 h-4 text-primary" />
-                      {aspectRatio}
-                    </button>
-                    {showAspectRatioMenu && (
-                      <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[120px] border border-white/10 shadow-2xl">
-                        <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Ratio</div>
-                        {ASPECT_RATIOS.map((ratio) => (
-                          <button
-                            key={ratio}
-                            onClick={(e) => { e.stopPropagation(); changeAspectRatio(ratio); }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${
-                              aspectRatio === ratio ? 'text-primary bg-white/5' : ''
-                            }`}
-                          >
-                            {ratio}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowPlaybackSpeedMenu(!showPlaybackSpeedMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowSubtitleMenu(false); setShowAudioMenu(false); setShowAspectRatioMenu(false); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
-                    >
-                      <Gauge className="w-4 h-4 text-primary" />
-                      {playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x`}
-                    </button>
-                    {showPlaybackSpeedMenu && (
-                      <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[100px] border border-white/10 shadow-2xl">
-                        <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Speed</div>
-                        {PLAYBACK_SPEEDS.map((speed) => (
-                          <button
-                            key={speed}
-                            onClick={(e) => { e.stopPropagation(); changePlaybackSpeed(speed); }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${
-                              playbackSpeed === speed ? 'text-primary bg-white/5' : ''
-                            }`}
-                          >
-                            {speed}x
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowPlaybackSpeedMenu(!showPlaybackSpeedMenu); setShowQualityMenu(false); setShowServerMenu(false); setShowSubtitleMenu(false); setShowAudioMenu(false); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-bold"
+                      >
+                        <Gauge className="w-4 h-4 text-primary" />
+                        {playbackSpeed === 1 ? 'Normal' : `${playbackSpeed}x`}
+                      </button>
+                      {showPlaybackSpeedMenu && (
+                        <div className="absolute right-0 bottom-full mb-2 bg-black/95 rounded-lg overflow-hidden min-w-[100px] border border-white/10 shadow-2xl">
+                          <div className="px-3 py-2 text-xs text-gray-400 border-b border-white/10 uppercase tracking-wider font-bold">Speed</div>
+                          {PLAYBACK_SPEEDS.map((speed) => (
+                            <button
+                              key={speed}
+                              onClick={(e) => { e.stopPropagation(); changePlaybackSpeed(speed); }}
+                              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-white/10 transition-colors ${
+                                playbackSpeed === speed ? 'text-primary bg-white/5' : ''
+                              }`}
+                            >
+                              {speed}x
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     <div className="relative">
                       <button

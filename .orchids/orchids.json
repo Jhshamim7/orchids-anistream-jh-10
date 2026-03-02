@@ -3,5 +3,7 @@
   "createdAt": 1740751200000,
   "startupCommands": [
     "npm install; npm run dev"
-  ]
+  ],
+  "templateId": "any",
+  "detectedFramework": "vite"
 }
